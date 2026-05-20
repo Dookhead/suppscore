@@ -1,17 +1,15 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { INGREDIENT_DATABASE } from '@/lib/scoring/database';
-import Tesseract from 'tesseract.js';
 
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [type, setType] = useState<'PRE_WORKOUT' | 'PROTEIN_POWDER'>('PRE_WORKOUT');
   const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
   const [price, setPrice] = useState('');
   const [servings, setServings] = useState('');
   const [servingSize, setServingSize] = useState('');
@@ -67,164 +65,7 @@ export default function Home() {
     }));
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    setOcrLoading(true);
-    try {
-      const result = await Tesseract.recognize(file, 'eng');
-      let rawText = result.data.text;
-      
-      // 1. Fix common OCR mistakes where zero '0' is read as letter 'o' or 'O' inside numbers
-      // E.g., '2ooo mg' -> '2000 mg', 'O.7 g' -> '0.7 g', '2.O g' -> '2.0 g'
-      let text = rawText.replace(/\b([0-9oO]+(?:[.,\s]+[0-9oO]+)?)\s*(mg|g|mcg|µg|grams|milligrams)\b/ig, (match, numStr, unitStr) => {
-        const correctedNum = numStr.replace(/[oO]/g, '0');
-        return correctedNum + ' ' + unitStr;
-      });
-
-      const foundIngredients: any[] = [];
-      let delayRowId = Date.now();
-
-      // 2. Gather all search terms/aliases and sort by length descending to prevent substring overlap (e.g., Citrulline Malate vs Citrulline)
-      interface SearchTermMapping {
-        db: typeof INGREDIENT_DATABASE[0];
-        term: string;
-      }
-      
-      const termMappings: SearchTermMapping[] = [];
-      INGREDIENT_DATABASE.forEach(db => {
-        const terms = [db.name, ...(db.aliases || [])];
-        terms.forEach(term => {
-          termMappings.push({ db, term });
-        });
-      });
-      
-      termMappings.sort((a, b) => b.term.length - a.term.length);
-
-      // Helper to generate a flexible RegExp from a search term (tolerant to hyphens, spaces, and L vs 1/i/I)
-      const createFlexibleRegex = (termStr: string): RegExp => {
-        let pattern = termStr.toLowerCase()
-          .replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') // escape regex chars
-          .replace(/[\s\-_/\\]+/g, '[\\s\\-_/\\\\•*~]*'); // spaces and hyphens optional and interchangeable
-        
-        // Match L at start of terms to 1, i, I, |
-        if (pattern.startsWith('l[\\s\\-_/\\\\•*~]*')) {
-          pattern = '[l1i|I][\\s\\-_/\\\\•*~]*' + pattern.substring(16);
-        }
-        
-        return new RegExp(pattern, 'i');
-      };
-
-      // Track character ranges in text that have already matched to prevent overlapping matches
-      const matchedRanges: { start: number; end: number }[] = [];
-      
-      const isOverlapping = (start: number, end: number) => {
-        return matchedRanges.some(r => (start >= r.start && start < r.end) || (end > r.start && end <= r.end));
-      };
-
-      termMappings.forEach(({ db, term }) => {
-        // If we already found this ingredient ID, don't match other aliases/spellings of it
-        if (foundIngredients.some(item => item.dbId === db.id)) return;
-        
-        const regex = createFlexibleRegex(term);
-        const match = text.match(regex);
-        
-        if (match && match.index !== undefined) {
-          const matchIndex = match.index;
-          const matchLength = match[0].length;
-          const matchEnd = matchIndex + matchLength;
-          
-          if (isOverlapping(matchIndex, matchEnd)) return;
-          
-          // Claim the match range
-          matchedRanges.push({ start: matchIndex, end: matchEnd });
-          
-          let dosage = '';
-          let unit: string = db.unit; // Default to DB preferred unit
-
-          // Locate the line containing this match
-          const lines = text.split('\n');
-          let lineOfMatch = '';
-          let cumulativeLength = 0;
-          for (const line of lines) {
-            const lineStart = cumulativeLength;
-            const lineEnd = lineStart + line.length;
-            if (matchIndex >= lineStart && matchIndex <= lineEnd) {
-              lineOfMatch = line;
-              break;
-            }
-            cumulativeLength = lineEnd + 1;
-          }
-
-          // Helper to extract dosage from a candidate string
-          const extractDosageFromString = (s: string): { dosage: string; unit: string } | null => {
-            const doseMatch = s.match(/([0-9]+(?:[\s.,]+[0-9]+)?)\s*(mg|g|mcg|µg|grams|milligrams)/i);
-            if (doseMatch) {
-              let parsedDose = doseMatch[1].replace(/\s+/g, '').replace(/\.+/g, '.').replace(/,+/g, '.');
-              let parsedUnit = doseMatch[2].toLowerCase();
-              if (parsedUnit === 'grams') parsedUnit = 'g';
-              if (parsedUnit === 'milligrams') parsedUnit = 'mg';
-              return { dosage: parsedDose, unit: parsedUnit };
-            }
-            return null;
-          };
-
-          // Strategy 1: Check same line first (most accurate for tabular nutrition labels)
-          const sameLineResult = extractDosageFromString(lineOfMatch);
-          if (sameLineResult) {
-            dosage = sameLineResult.dosage;
-            unit = sameLineResult.unit;
-          } else {
-            // Strategy 2: Look ahead 150 characters
-            const textAfter = text.slice(matchIndex, matchIndex + 150);
-            const lookaheadResult = extractDosageFromString(textAfter);
-            if (lookaheadResult) {
-              dosage = lookaheadResult.dosage;
-              unit = lookaheadResult.unit;
-            } else {
-              // Strategy 3: Look behind 60 characters
-              const textBefore = text.slice(Math.max(0, matchIndex - 60), matchIndex);
-              const lookbehindResult = extractDosageFromString(textBefore);
-              if (lookbehindResult) {
-                dosage = lookbehindResult.dosage;
-                unit = lookbehindResult.unit;
-              }
-            }
-          }
-
-          // Convert mcg/µg to mg
-          if (unit === 'mcg' || unit === 'µg') {
-            unit = 'mg';
-            dosage = String(parseFloat(dosage) / 1000);
-          }
-
-          foundIngredients.push({
-            rowId: `row_ocr_${delayRowId++}`,
-            searchVal: db.name,
-            dbId: db.id,
-            dosage: dosage,
-            unit: unit === 'g' ? 'g' : 'mg',
-            isPropBlend: dosage === '',
-            isOpen: false
-          });
-        }
-      });
-
-      if (foundIngredients.length > 0) {
-        setPwIngredients(foundIngredients);
-      } else {
-        alert("Couldn't detect any recognized ingredients on this label.");
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert("Error scanning image.");
-    } finally {
-      setOcrLoading(false);
-      if (e.target) e.target.value = '';
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,7 +76,8 @@ export default function Home() {
       type,
       price: parseFloat(price),
       servings: parseInt(servings, 10),
-      servingSize: parseFloat(servingSize) || null
+      servingSize: parseFloat(servingSize) || null,
+      url: url || null
     };
 
     let finalData: any = { ...baseData };
@@ -325,10 +167,14 @@ export default function Home() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Product Name</label>
               <input type="text" className="input-text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Total War" />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Product Link (Optional)</label>
+              <input type="url" className="input-text" value={url} onChange={e => setUrl(e.target.value)} placeholder="e.g. https://site.com/product" />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem' }}>Price ($) *</label>
@@ -378,13 +224,7 @@ export default function Home() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <h3>Active Ingredients</h3>
-                  <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
-                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: 'var(--accent-gradient)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, opacity: ocrLoading ? 0.7 : 1 }} disabled={ocrLoading}>
-                    {ocrLoading ? 'Scanning...' : '📷 Scan Label'}
-                  </button>
-                </div>
+                <h3>Active Ingredients</h3>
                 <button type="button" onClick={addIngredientRow} style={{ background: 'transparent', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
                   + Add Ingredient
                 </button>

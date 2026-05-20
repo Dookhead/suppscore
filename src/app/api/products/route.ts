@@ -6,7 +6,7 @@ import { calculateProteinScore } from '@/lib/scoring/protein';
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    const { name, type, price, servings, servingSize, ingredients, proteinDetails, isNonStim, ownCreatine } = data;
+    const { name, type, price, servings, servingSize, ingredients, proteinDetails, isNonStim, ownCreatine, url } = data;
 
     // Calculate the final score before saving, so we can sort the leaderboard
     let finalScore = 0;
@@ -25,6 +25,7 @@ export async function POST(req: Request) {
         servings,
         servingSize: servingSize || 0,
         finalScore,
+        url: url || null,
         isNonStim: isNonStim || false,
         ownCreatine: ownCreatine || false,
         ingredients: {

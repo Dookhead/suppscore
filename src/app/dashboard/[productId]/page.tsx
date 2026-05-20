@@ -132,6 +132,24 @@ export default function DashboardPage({ params }: { params: { productId: string 
             <p><strong>Servings:</strong> {data.servings}</p>
             <p><strong>Cost/Serving (Listed):</strong> ${(data.price / data.servings).toFixed(2)}</p>
             {data.servingSize && <p><strong>Serving Size:</strong> {data.servingSize}g</p>}
+            {data.url && (
+              <p>
+                <strong>Source:</strong>{' '}
+                <a 
+                  href={data.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ 
+                    color: 'var(--accent-primary)', 
+                    textDecoration: 'underline',
+                    fontWeight: 600,
+                    wordBreak: 'break-all'
+                  }}
+                >
+                  View Product Link ↗
+                </a>
+              </p>
+            )}
           </div>
         </div>
 
