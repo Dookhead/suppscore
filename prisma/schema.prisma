@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -9,12 +10,12 @@ datasource db {
 }
 
 model UserProfile {
-  id                  String   @id @default(cuid())
-  caffeineWeight      Float    @default(0.3)
-  betaAlanineWeight   Float    @default(0.2)
-  citrullineWeight    Float    @default(0.3)
-  creatineWeight      Float    @default(0.2)
-  createdAt           DateTime @default(now())
+  id                String   @id @default(cuid())
+  caffeineWeight    Float    @default(0.3)
+  betaAlanineWeight Float    @default(0.2)
+  citrullineWeight  Float    @default(0.3)
+  creatineWeight    Float    @default(0.2)
+  createdAt         DateTime @default(now())
 }
 
 model Product {
