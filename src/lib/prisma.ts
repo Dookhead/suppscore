@@ -1,9 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
 import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from 'ws';
 
-neonConfig.webSocketConstructor = ws;
+// Only use ws in local Node.js environment, Vercel has native WebSocket
+if (typeof WebSocket === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  neonConfig.webSocketConstructor = require('ws');
+}
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 function createPrismaClient() {
