@@ -6,12 +6,12 @@ import { calculateProteinScore } from '@/lib/scoring/protein';
 export async function POST(req: Request) {
   try {
     const data = await req.json();
-    const { name, type, price, servings, servingSize, ingredients, proteinDetails } = data;
+    const { name, type, price, servings, servingSize, ingredients, proteinDetails, isNonStim, ownCreatine } = data;
 
     // Calculate the final score before saving, so we can sort the leaderboard
     let finalScore = 0;
     if (type === 'PRE_WORKOUT') {
-      const scoreData = calculatePreWorkoutScore(ingredients || [], price, servings);
+      const scoreData = calculatePreWorkoutScore(ingredients || [], price, servings, servingSize, isNonStim, ownCreatine);
       finalScore = scoreData.finalScore;
     } else {
       finalScore = calculateProteinScore(price, servings, proteinDetails?.protein || 0, proteinDetails?.calories || 0).finalScore;
@@ -25,6 +25,8 @@ export async function POST(req: Request) {
         servings,
         servingSize: servingSize || 0,
         finalScore,
+        isNonStim: isNonStim || false,
+        ownCreatine: ownCreatine || false,
         ingredients: {
           create: ingredients?.map((ing: any) => ({
             name: ing.id, // storing the DB id in the 'name' field for simplicity

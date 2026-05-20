@@ -58,7 +58,7 @@ export default function DashboardPage({ params }: { params: { productId: string 
   let scoreData: any = null;
 
   if (isPreWorkout) {
-    scoreData = calculatePreWorkoutScore(data.ingredients, data.price, data.servings);
+    scoreData = calculatePreWorkoutScore(data.ingredients, data.price, data.servings, data.servingSize, data.isNonStim, data.ownCreatine);
   } else {
     scoreData = calculateProteinScore(data.price, data.servings, data.proteinDetails.protein, data.proteinDetails.calories);
   }
@@ -134,6 +134,46 @@ export default function DashboardPage({ params }: { params: { productId: string 
             {data.servingSize && <p><strong>Serving Size:</strong> {data.servingSize}g</p>}
           </div>
         </div>
+
+        {isPreWorkout && (data.isNonStim || data.ownCreatine) && (
+          <div className="glass-panel">
+            <h3>Applied Settings</h3>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {data.isNonStim && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  background: 'rgba(59, 130, 246, 0.1)', 
+                  border: '1px solid rgba(59, 130, 246, 0.3)', 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  fontSize: '0.85rem',
+                  color: '#60a5fa',
+                  fontWeight: 600
+                }}>
+                  🌱 Stim-Free (Non-Stim)
+                </div>
+              )}
+              {data.ownCreatine && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  background: 'rgba(139, 92, 246, 0.1)', 
+                  border: '1px solid rgba(139, 92, 246, 0.3)', 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  fontSize: '0.85rem',
+                  color: '#a78bfa',
+                  fontWeight: 600
+                }}>
+                  💪 Creatine Independent
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         <button className="btn-primary" onClick={() => router.push('/')}>
           Analyze Another
@@ -159,22 +199,48 @@ export default function DashboardPage({ params }: { params: { productId: string 
                 </div>
               </div>
 
-              <h3 style={{ marginBottom: '16px', color: 'var(--accent-primary)' }}>Value & Synergy</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
+              <h3 style={{ marginBottom: '16px', color: 'var(--accent-primary)' }}>Value, Density & Synergy</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '40px' }}>
                  
-                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>
-                   <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '4px' }}>True Cost Per Serving</div>
-                   <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>${breakdown.trueCostPerServing.toFixed(2)}</div>
-                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-                     Adjusted based on clinical efficacy. (Listed: ${breakdown.listedCostPerServing.toFixed(2)})
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Efficacy per Dollar</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>{breakdown.efficacyPerDollar.toFixed(1)}</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Points per serving dollar. Higher is better value.
+                   </div>
+                 </div>
+
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active scoop Density</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                     {data.servingSize ? `${breakdown.activeDensityPct.toFixed(1)}%` : 'N/A'}
+                   </div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     {data.servingSize ? 'Percentage of serving weight that consists of active ingredients.' : 'No serving size specified to calculate density.'}
+                   </div>
+                 </div>
+
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cost per Active Gram</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>${breakdown.costPerActiveGram.toFixed(2)}</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Price paid purely for active performance ingredients.
                    </div>
                  </div>
                  
-                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>
-                   <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '4px' }}>Synergy Bonus</div>
-                   <div style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--success)' }}>+{breakdown.synergyBonus.toFixed(1)}</div>
-                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-                     Bonus points awarded for comprehensive pathways.
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--success)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Synergy Bonus</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--success)' }}>+{breakdown.synergyBonus.toFixed(1)}</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Extra points awarded for formulation completeness.
                    </div>
                  </div>
 

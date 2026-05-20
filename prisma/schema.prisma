@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
 }
 
 model UserProfile {
@@ -27,6 +27,8 @@ model Product {
   ingredients    Ingredient[]
   proteinDetails ProteinDetails?
   createdAt      DateTime        @default(now())
+  isNonStim      Boolean         @default(false)
+  ownCreatine    Boolean         @default(false)
 }
 
 model Ingredient {

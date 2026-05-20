@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     // Format back to what the frontend expects
     const formatted = {
       ...product,
-      ingredients: product.ingredients.map(ing => ({
+      ingredients: product.ingredients.map((ing: any) => ({
         id: ing.name, // we stored dbId in name
         name: ing.name, 
         dosage: ing.dosage,

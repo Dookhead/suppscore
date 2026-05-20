@@ -16,6 +16,10 @@ export default function Home() {
   const [servings, setServings] = useState('');
   const [servingSize, setServingSize] = useState('');
 
+  // Pre-Workout specifics
+  const [isNonStim, setIsNonStim] = useState(false);
+  const [ownCreatine, setOwnCreatine] = useState(false);
+
   // Protein specifics
   const [proteinAmount, setProteinAmount] = useState('');
   const [calories, setCalories] = useState('');
@@ -70,41 +74,131 @@ export default function Home() {
     setOcrLoading(true);
     try {
       const result = await Tesseract.recognize(file, 'eng');
-      const text = result.data.text;
+      let rawText = result.data.text;
       
+      // 1. Fix common OCR mistakes where zero '0' is read as letter 'o' or 'O' inside numbers
+      // E.g., '2ooo mg' -> '2000 mg', 'O.7 g' -> '0.7 g', '2.O g' -> '2.0 g'
+      let text = rawText.replace(/\b([0-9oO]+(?:[.,\s]+[0-9oO]+)?)\s*(mg|g|mcg|µg|grams|milligrams)\b/ig, (match, numStr, unitStr) => {
+        const correctedNum = numStr.replace(/[oO]/g, '0');
+        return correctedNum + ' ' + unitStr;
+      });
+
       const foundIngredients: any[] = [];
       let delayRowId = Date.now();
 
+      // 2. Gather all search terms/aliases and sort by length descending to prevent substring overlap (e.g., Citrulline Malate vs Citrulline)
+      interface SearchTermMapping {
+        db: typeof INGREDIENT_DATABASE[0];
+        term: string;
+      }
+      
+      const termMappings: SearchTermMapping[] = [];
       INGREDIENT_DATABASE.forEach(db => {
-        const searchTerms = [db.name, ...(db.aliases || [])];
-        let matched = false;
-        let dosage = '';
-        let unit = 'mg';
+        const terms = [db.name, ...(db.aliases || [])];
+        terms.forEach(term => {
+          termMappings.push({ db, term });
+        });
+      });
+      
+      termMappings.sort((a, b) => b.term.length - a.term.length);
 
-        for (const term of searchTerms) {
-          // Look for the ingredient name in the raw text
-          const termRegex = new RegExp(term.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
-          const matchIndex = text.search(termRegex);
-          
-          if (matchIndex !== -1) {
-            matched = true;
-            // Look ahead to find a dosage near the name (expanded to 120 chars for wide tabular labels)
-            const textAfter = text.slice(matchIndex, matchIndex + 120);
-            const doseMatch = textAfter.match(/([0-9.,]+)\s*(mg|g|mcg|µg)/i);
-            
-            if (doseMatch) {
-               dosage = doseMatch[1].replace(',', '.');
-               unit = doseMatch[2].toLowerCase();
-               if (unit === 'mcg' || unit === 'µg') { 
-                 unit = 'mg'; 
-                 dosage = String(parseFloat(dosage) / 1000); 
-               }
-            }
-            break;
-          }
+      // Helper to generate a flexible RegExp from a search term (tolerant to hyphens, spaces, and L vs 1/i/I)
+      const createFlexibleRegex = (termStr: string): RegExp => {
+        let pattern = termStr.toLowerCase()
+          .replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') // escape regex chars
+          .replace(/[\s\-_/\\]+/g, '[\\s\\-_/\\\\•*~]*'); // spaces and hyphens optional and interchangeable
+        
+        // Match L at start of terms to 1, i, I, |
+        if (pattern.startsWith('l[\\s\\-_/\\\\•*~]*')) {
+          pattern = '[l1i|I][\\s\\-_/\\\\•*~]*' + pattern.substring(16);
         }
+        
+        return new RegExp(pattern, 'i');
+      };
 
-        if (matched) {
+      // Track character ranges in text that have already matched to prevent overlapping matches
+      const matchedRanges: { start: number; end: number }[] = [];
+      
+      const isOverlapping = (start: number, end: number) => {
+        return matchedRanges.some(r => (start >= r.start && start < r.end) || (end > r.start && end <= r.end));
+      };
+
+      termMappings.forEach(({ db, term }) => {
+        // If we already found this ingredient ID, don't match other aliases/spellings of it
+        if (foundIngredients.some(item => item.dbId === db.id)) return;
+        
+        const regex = createFlexibleRegex(term);
+        const match = text.match(regex);
+        
+        if (match && match.index !== undefined) {
+          const matchIndex = match.index;
+          const matchLength = match[0].length;
+          const matchEnd = matchIndex + matchLength;
+          
+          if (isOverlapping(matchIndex, matchEnd)) return;
+          
+          // Claim the match range
+          matchedRanges.push({ start: matchIndex, end: matchEnd });
+          
+          let dosage = '';
+          let unit: string = db.unit; // Default to DB preferred unit
+
+          // Locate the line containing this match
+          const lines = text.split('\n');
+          let lineOfMatch = '';
+          let cumulativeLength = 0;
+          for (const line of lines) {
+            const lineStart = cumulativeLength;
+            const lineEnd = lineStart + line.length;
+            if (matchIndex >= lineStart && matchIndex <= lineEnd) {
+              lineOfMatch = line;
+              break;
+            }
+            cumulativeLength = lineEnd + 1;
+          }
+
+          // Helper to extract dosage from a candidate string
+          const extractDosageFromString = (s: string): { dosage: string; unit: string } | null => {
+            const doseMatch = s.match(/([0-9]+(?:[\s.,]+[0-9]+)?)\s*(mg|g|mcg|µg|grams|milligrams)/i);
+            if (doseMatch) {
+              let parsedDose = doseMatch[1].replace(/\s+/g, '').replace(/\.+/g, '.').replace(/,+/g, '.');
+              let parsedUnit = doseMatch[2].toLowerCase();
+              if (parsedUnit === 'grams') parsedUnit = 'g';
+              if (parsedUnit === 'milligrams') parsedUnit = 'mg';
+              return { dosage: parsedDose, unit: parsedUnit };
+            }
+            return null;
+          };
+
+          // Strategy 1: Check same line first (most accurate for tabular nutrition labels)
+          const sameLineResult = extractDosageFromString(lineOfMatch);
+          if (sameLineResult) {
+            dosage = sameLineResult.dosage;
+            unit = sameLineResult.unit;
+          } else {
+            // Strategy 2: Look ahead 150 characters
+            const textAfter = text.slice(matchIndex, matchIndex + 150);
+            const lookaheadResult = extractDosageFromString(textAfter);
+            if (lookaheadResult) {
+              dosage = lookaheadResult.dosage;
+              unit = lookaheadResult.unit;
+            } else {
+              // Strategy 3: Look behind 60 characters
+              const textBefore = text.slice(Math.max(0, matchIndex - 60), matchIndex);
+              const lookbehindResult = extractDosageFromString(textBefore);
+              if (lookbehindResult) {
+                dosage = lookbehindResult.dosage;
+                unit = lookbehindResult.unit;
+              }
+            }
+          }
+
+          // Convert mcg/µg to mg
+          if (unit === 'mcg' || unit === 'µg') {
+            unit = 'mg';
+            dosage = String(parseFloat(dosage) / 1000);
+          }
+
           foundIngredients.push({
             rowId: `row_ocr_${delayRowId++}`,
             searchVal: db.name,
@@ -147,6 +241,8 @@ export default function Home() {
     let finalData: any = { ...baseData };
 
     if (type === 'PRE_WORKOUT') {
+      finalData.isNonStim = isNonStim;
+      finalData.ownCreatine = ownCreatine;
       const ingredients = pwIngredients
         .map(r => {
           let resolvedId = r.dbId;
@@ -252,6 +348,35 @@ export default function Home() {
 
           {type === 'PRE_WORKOUT' && (
             <div>
+              {/* Formula Toggles */}
+              <div style={{ display: 'flex', gap: '20px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem', userSelect: 'none', flex: 1 }}>
+                  <input 
+                    type="checkbox" 
+                    checked={isNonStim} 
+                    onChange={e => setIsNonStim(e.target.checked)} 
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <div>
+                    <strong>Non-Stimulant Mode</strong>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>Excludes Caffeine/CNS energy pathway from calculation</div>
+                  </div>
+                </label>
+                <div style={{ width: '1px', background: 'var(--border-color)' }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem', userSelect: 'none', flex: 1 }}>
+                  <input 
+                    type="checkbox" 
+                    checked={ownCreatine} 
+                    onChange={e => setOwnCreatine(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <div>
+                    <strong>Supplement Creatine Separately</strong>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>Auto-fulfills 5g clinical Creatine requirement</div>
+                  </div>
+                </label>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <h3>Active Ingredients</h3>

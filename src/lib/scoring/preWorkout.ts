@@ -13,9 +13,10 @@ export function calculatePreWorkoutScore(
   ingredients: Ingredient[],
   price: number,
   servings: number,
-  weights?: Record<string, number> // Keep for legacy/UI compatibility if needed, but not primarily used for expert math
+  servingSize?: number | null,
+  isNonStim: boolean = false,
+  ownCreatine: boolean = false
 ) {
-  
   // Initialize pathway scores
   const pathwayScores: Record<Pathway, number> = {
     Energy: 0,
@@ -28,8 +29,19 @@ export function calculatePreWorkoutScore(
   let synergyBonus = 0;
   let totalClinicalIngredients = 0;
 
+  // Clone and auto-inject creatine if user supplements separately and it is not already in the product
+  const activeIngredients = [...ingredients];
+  if (ownCreatine && !activeIngredients.some(ing => ing.id === 'creatine_mono' || ing.id === 'creatine_hcl' || ing.id === 'tri_creatine_malate')) {
+    activeIngredients.push({
+      id: 'creatine_mono',
+      name: 'Creatine Monohydrate (Supplemented Separately)',
+      dosage: 5,
+      unit: 'g'
+    });
+  }
+
   // 1. Calculate Pathway Contributions
-  ingredients.forEach(ing => {
+  activeIngredients.forEach(ing => {
     const dbEntry = INGREDIENT_DATABASE.find(item => item.id === ing.id);
     
     if (dbEntry) {
@@ -49,8 +61,16 @@ export function calculatePreWorkoutScore(
           totalClinicalIngredients++;
         }
 
-        // Add to pathway score (e.g. 60 weight * 1.0 ratio = 60 points for Pump)
-        const points = dbEntry.pathwayWeight * dosageRatio;
+        // Apply a "Label-Dressing Penalty" for sub-therapeutic doses (under 50% clinical dose)
+        let adjustedRatio = dosageRatio;
+        if (dosageRatio >= 0.8) {
+          adjustedRatio = 1.0; // Full credit for solid clinical dose
+        } else if (dosageRatio < 0.5) {
+          adjustedRatio = Math.pow(dosageRatio, 1.5); // Exponential decay penalty for dustings
+        }
+
+        // Add to pathway score
+        const points = dbEntry.pathwayWeight * adjustedRatio;
         pathwayScores[dbEntry.category] += points;
       }
     }
@@ -58,13 +78,17 @@ export function calculatePreWorkoutScore(
 
   // 2. Calculate Base Efficacy and Synergy Bonus
   let totalBaseScore = 0;
-  let activePathways = 4; // Energy, Pump, Endurance, Focus. (Absorption is a bonus/modifier).
+  let activePathways = isNonStim ? 3 : 4; // Exclude Energy pathway if non-stimulant formula
   
   Object.keys(pathwayScores).forEach(key => {
     const pathway = key as Pathway;
     const score = pathwayScores[pathway];
     
     if (pathway !== 'Absorption') {
+      if (isNonStim && pathway === 'Energy') {
+        return; // Skip Energy pathway calculations
+      }
+      
       // Cap base contribution at 100 per pathway
       totalBaseScore += Math.min(score, 100);
       
@@ -75,8 +99,7 @@ export function calculatePreWorkoutScore(
     }
   });
 
-  // Base Efficacy is out of 100 (Average of the 4 main pathways)
-  // E.g., if you only have 3 ingredients, you might score 100, 100, 100, 0 = 300/4 = 75%
+  // Base Efficacy is out of 100 (Average of the active main pathways)
   let baseEfficacy = totalBaseScore / activePathways;
 
   // Absorption acts as a direct multiplier to the base efficacy (up to 5% boost)
@@ -91,15 +114,38 @@ export function calculatePreWorkoutScore(
     synergyBonus += (totalClinicalIngredients - 5) * 2;
   }
 
-  // 3. True Value Metric
+  // 3. Rethought Scoop Economics & Efficacy per Dollar
   const listedCostPerServing = servings > 0 ? price / servings : price;
-  
-  // True Cost = Listed Cost / Base Efficacy
-  const effectiveRatio = baseEfficacy > 0 ? baseEfficacy / 100 : 0.01;
-  const trueCostPerServing = listedCostPerServing / effectiveRatio;
 
-  const valueRatio = MARKET_AVERAGE_COST_PER_SERVING / (trueCostPerServing || 1); 
-  const valueScore = Math.min(Math.max(valueRatio, 0), 1) * 100; // 0 to 100
+  // A: Calculate Active Ingredient Density %
+  let totalActiveMassG = 0;
+  activeIngredients.forEach(ing => {
+    if (ing.dosage !== null) {
+      let mass = ing.dosage;
+      if (ing.unit === 'mg') {
+        mass /= 1000;
+      }
+      totalActiveMassG += mass;
+    }
+  });
+
+  let activeDensityPct = 0;
+  if (servingSize && servingSize > 0) {
+    activeDensityPct = Math.min((totalActiveMassG / servingSize) * 100, 100);
+  }
+
+  // B: Calculate Cost per Active Gram
+  let costPerActiveGram = 0;
+  if (totalActiveMassG > 0) {
+    costPerActiveGram = listedCostPerServing / totalActiveMassG;
+  }
+
+  // C: Calculate Efficacy Per Dollar and Value Score
+  // Benchmark: 70% efficacy for $1.50/serving (gives 46.67 points/dollar)
+  const efficacyPerDollar = listedCostPerServing > 0 ? baseEfficacy / listedCostPerServing : 0;
+  const benchmarkEfficacyPerDollar = 70 / 1.50; 
+  const valueRatio = benchmarkEfficacyPerDollar > 0 ? efficacyPerDollar / benchmarkEfficacyPerDollar : 0;
+  const valueScore = Math.min(valueRatio * 100, 100); // 0 to 100
 
   // 4. Final Score
   // 70% Base Efficacy + 30% Value Score + Synergy Bonus
@@ -109,7 +155,7 @@ export function calculatePreWorkoutScore(
     finalScore: Math.round(finalScore),
     breakdown: {
       pathwayScores: {
-        Energy: Math.min(pathwayScores.Energy, 100),
+        Energy: isNonStim ? 0 : Math.min(pathwayScores.Energy, 100),
         Pump: Math.min(pathwayScores.Pump, 100),
         Endurance: Math.min(pathwayScores.Endurance, 100),
         Focus: Math.min(pathwayScores.Focus, 100),
@@ -118,8 +164,12 @@ export function calculatePreWorkoutScore(
       baseEfficacy,
       synergyBonus,
       listedCostPerServing,
-      trueCostPerServing,
-      valueScore
+      efficacyPerDollar,
+      activeDensityPct,
+      costPerActiveGram,
+      valueScore,
+      isNonStim,
+      ownCreatine
     }
   };
 }
