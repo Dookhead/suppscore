@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model UserProfile {
+  id                  String   @id @default(cuid())
+  caffeineWeight      Float    @default(0.3)
+  betaAlanineWeight   Float    @default(0.2)
+  citrullineWeight    Float    @default(0.3)
+  creatineWeight      Float    @default(0.2)
+  createdAt           DateTime @default(now())
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  name           String
+  url            String?
+  type           String       // PRE_WORKOUT or PROTEIN_POWDER
+  price          Float
+  servings       Int
+  servingSize    Float
+  finalScore     Float?
+  ingredients    Ingredient[]
+  proteinDetails ProteinDetails?
+  createdAt      DateTime     @default(now())
+}
+
+model Ingredient {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  dosage    Float?  // Null implies proprietary blend
+  unit      String
+}
+
+model ProteinDetails {
+  id        String  @id @default(cuid())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id])
+  protein   Float   // grams
+  calories  Float
+}
