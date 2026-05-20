@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -18,17 +19,17 @@ model UserProfile {
 }
 
 model Product {
-  id             String       @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
   url            String?
-  type           String       // PRE_WORKOUT or PROTEIN_POWDER
+  type           String
   price          Float
   servings       Int
   servingSize    Float
   finalScore     Float?
   ingredients    Ingredient[]
   proteinDetails ProteinDetails?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime        @default(now())
 }
 
 model Ingredient {
@@ -36,7 +37,7 @@ model Ingredient {
   productId String
   product   Product @relation(fields: [productId], references: [id])
   name      String
-  dosage    Float?  // Null implies proprietary blend
+  dosage    Float?
   unit      String
 }
 
@@ -44,6 +45,6 @@ model ProteinDetails {
   id        String  @id @default(cuid())
   productId String  @unique
   product   Product @relation(fields: [productId], references: [id])
-  protein   Float   // grams
+  protein   Float
   calories  Float
 }
