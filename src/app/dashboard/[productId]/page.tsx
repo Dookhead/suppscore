@@ -223,6 +223,16 @@ export default function DashboardPage({ params }: { params: { productId: string 
                  <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
                       onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
                       onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Value Score</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>{Math.round(breakdown.valueScore)}/100</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Weighted value rating. Determines 30% of overall score.
+                   </div>
+                 </div>
+
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Efficacy per Dollar</div>
                    <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>{breakdown.efficacyPerDollar.toFixed(1)}</div>
                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
@@ -316,18 +326,38 @@ export default function DashboardPage({ params }: { params: { productId: string 
             <div>
               <h3 style={{ marginBottom: '16px', color: 'var(--accent-primary)' }}>Protein Metrics</h3>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Protein Density</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{breakdown.proteinDensity.toFixed(1)}%</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>% of calories from pure protein</div>
-                </div>
-                
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Cost per gram of Protein</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>${breakdown.costPerGram.toFixed(3)}</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>Optimal is ~$0.02</div>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '40px' }}>
+                 
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Value Score</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>{Math.round(breakdown.costEfficacyScore)}/100</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Normalized cost-efficiency rating. Determines 50% of overall score.
+                   </div>
+                 </div>
+
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Protein Density</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>{breakdown.proteinDensity.toFixed(1)}%</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Percentage of calories derived from pure protein. Determines 50% of overall score.
+                   </div>
+                 </div>
+
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', transition: 'transform 0.2s', cursor: 'default' }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-primary)'}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                   <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cost per gram of Protein</div>
+                   <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>${breakdown.costPerGram.toFixed(3)}</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', lineHeight: '1.4' }}>
+                     Price paid purely per gram of pure protein. Target is ≤$0.020.
+                   </div>
+                 </div>
+
               </div>
             </div>
           )}
