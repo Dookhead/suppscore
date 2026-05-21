@@ -311,10 +311,10 @@ export default function LeaderboardPage() {
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rank</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Product</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</th>
-                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>1 Serve Cost</th>
-                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Value Score</th>
-                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Strong Points</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Active Density</th>
+                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>1 Serve Cost</th>
+                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Strong Points</th>
+                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Value Score</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Score</th>
               </tr>
             </thead>
@@ -371,16 +371,16 @@ export default function LeaderboardPage() {
                       )}
                     </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500 }}>
-                      ${p.breakdown.listedCostPerServing.toFixed(2)}
+                      {p.servingSize ? `${p.breakdown.activeDensityPct.toFixed(1)}%` : 'N/A'}
                     </td>
-                    <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500, color: 'var(--text-main)' }}>
-                      {Math.round(p.breakdown.valueScore)}/100
+                    <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500 }}>
+                      ${p.breakdown.listedCostPerServing.toFixed(2)}
                     </td>
                     <td style={{ padding: '18px 16px', verticalAlign: 'middle', fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
                       {getStrongPoints(p.breakdown.pathwayScores, p.isNonStim)}
                     </td>
-                    <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500 }}>
-                      {p.servingSize ? `${p.breakdown.activeDensityPct.toFixed(1)}%` : 'N/A'}
+                    <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500, color: 'var(--text-main)' }}>
+                      {Math.round(p.breakdown.valueScore)}
                     </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 700, color: 'var(--accent-primary)', fontSize: '1.25rem' }}>
                       {p.calculatedScore}
@@ -432,7 +432,7 @@ export default function LeaderboardPage() {
                       ${(p.price / p.servings).toFixed(2)}
                     </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500, color: 'var(--text-main)' }}>
-                      {Math.round(p.breakdown.costEfficacyScore)}/100
+                      {Math.round(p.breakdown.costEfficacyScore)}
                     </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 600, color: 'var(--success)' }}>
                       {p.breakdown.proteinDensity.toFixed(1)}%
