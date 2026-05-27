@@ -47,7 +47,7 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<'PRE_WORKOUT' | 'PROTEIN_POWDER'>('PRE_WORKOUT');
   const [stimFilter, setStimFilter] = useState<'ALL' | 'STIM' | 'NON_STIM'>('ALL');
   const [sortBy, setSortBy] = useState<'FINAL_SCORE' | 'VALUE_SCORE'>('FINAL_SCORE');
-  const [discountPct, setDiscountPct] = useState<number>(0);
+  const [productDiscounts, setProductDiscounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -70,7 +70,8 @@ export default function LeaderboardPage() {
   const preWorkoutRankings = products
     .filter(p => p.type === 'PRE_WORKOUT')
     .map(p => {
-      const currentPrice = p.price * (1 - (discountPct || 0) / 100);
+      const discount = productDiscounts[p.id] || 0;
+      const currentPrice = p.price * (1 - discount / 100);
       const formattedIngredients = p.ingredients.map((ing: any) => ({
         id: ing.name,
         name: ing.name,
@@ -88,6 +89,8 @@ export default function LeaderboardPage() {
       return {
         ...p,
         price: currentPrice,
+        originalPrice: p.price,
+        discountPct: discount,
         calculatedScore: scoreData.finalScore,
         breakdown: scoreData.breakdown
       };
@@ -108,7 +111,8 @@ export default function LeaderboardPage() {
   const proteinRankings = products
     .filter(p => p.type === 'PROTEIN_POWDER')
     .map(p => {
-      const currentPrice = p.price * (1 - (discountPct || 0) / 100);
+      const discount = productDiscounts[p.id] || 0;
+      const currentPrice = p.price * (1 - discount / 100);
       const scoreData = calculateProteinScore(
         currentPrice,
         p.servings,
@@ -118,6 +122,8 @@ export default function LeaderboardPage() {
       return {
         ...p,
         price: currentPrice,
+        originalPrice: p.price,
+        discountPct: discount,
         calculatedScore: scoreData.finalScore,
         breakdown: scoreData.breakdown
       };
@@ -246,7 +252,6 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-      {/* Sort Options and Product Count */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -257,34 +262,6 @@ export default function LeaderboardPage() {
       }}>
         <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
           Showing <strong>{activeTab === 'PRE_WORKOUT' ? preWorkoutRankings.length : proteinRankings.length}</strong> products
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid var(--border-color)',
-          padding: '4px',
-          borderRadius: '10px'
-        }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '8px', paddingRight: '4px', fontWeight: 600 }}>DISCOUNT %:</span>
-          <input 
-            type="number" 
-            min="0" 
-            max="100" 
-            value={discountPct} 
-            onChange={(e) => setDiscountPct(Number(e.target.value))} 
-            style={{ 
-              width: '60px', 
-              background: 'rgba(0,0,0,0.2)', 
-              border: '1px solid var(--border-color)', 
-              color: '#fff', 
-              borderRadius: '6px', 
-              padding: '4px 8px', 
-              fontSize: '0.9rem',
-              outline: 'none'
-            }} 
-          />
         </div>
         <div style={{ 
           display: 'flex', 
@@ -347,6 +324,7 @@ export default function LeaderboardPage() {
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Active Density</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>1 Serve Cost</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Strong Points</th>
+                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Discount</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Value Score</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Score</th>
               </tr>
@@ -373,7 +351,15 @@ export default function LeaderboardPage() {
                     <td style={{ padding: '18px 16px', verticalAlign: 'middle' }}>
                       <div style={{ fontWeight: 600, color: '#fff', fontSize: '1rem' }}>{p.name}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        ${p.price.toFixed(2)} | {p.servings} servings
+                        {p.discountPct > 0 ? (
+                          <>
+                            <span style={{ textDecoration: 'line-through', marginRight: '6px' }}>${p.originalPrice.toFixed(2)}</span>
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>${p.price.toFixed(2)}</span>
+                          </>
+                        ) : (
+                          `$${p.price.toFixed(2)}`
+                        )}
+                        {' '}| {p.servings} servings
                       </div>
                     </td>
                     <td style={{ padding: '18px 16px', verticalAlign: 'middle' }}>
@@ -412,6 +398,36 @@ export default function LeaderboardPage() {
                     <td style={{ padding: '18px 16px', verticalAlign: 'middle', fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
                       {getStrongPoints(p.breakdown.pathwayScores, p.isNonStim)}
                     </td>
+                    <td style={{ padding: '18px 16px', verticalAlign: 'middle', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <input 
+                          type="number" 
+                          min="0" 
+                          max="100" 
+                          placeholder="0"
+                          value={p.discountPct || ''} 
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
+                            setProductDiscounts(prev => ({ ...prev, [p.id]: val }));
+                          }} 
+                          style={{ 
+                            width: '55px', 
+                            background: 'rgba(0,0,0,0.3)', 
+                            border: '1px solid var(--border-color)', 
+                            color: '#fff', 
+                            borderRadius: '6px', 
+                            padding: '4px 6px', 
+                            fontSize: '0.85rem',
+                            textAlign: 'center',
+                            outline: 'none',
+                            transition: 'border-color 0.2s'
+                          }} 
+                          onFocus={(e) => e.target.style.borderColor = 'var(--accent-primary)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>%</span>
+                      </div>
+                    </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500, color: 'var(--text-main)' }}>
                       {Math.round(p.breakdown.valueScore)}
                     </td>
@@ -430,6 +446,7 @@ export default function LeaderboardPage() {
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rank</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Product</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>1 Serve Cost</th>
+                <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Discount</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Value Score</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Protein density</th>
                 <th style={{ padding: '18px 16px', fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Cost / Protein g</th>
@@ -458,11 +475,49 @@ export default function LeaderboardPage() {
                     <td style={{ padding: '18px 16px', verticalAlign: 'middle' }}>
                       <div style={{ fontWeight: 600, color: '#fff', fontSize: '1rem' }}>{p.name}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        ${p.price.toFixed(2)} | {p.servings} servings
+                        {p.discountPct > 0 ? (
+                          <>
+                            <span style={{ textDecoration: 'line-through', marginRight: '6px' }}>${p.originalPrice.toFixed(2)}</span>
+                            <span style={{ color: 'var(--success)', fontWeight: 600 }}>${p.price.toFixed(2)}</span>
+                          </>
+                        ) : (
+                          `$${p.price.toFixed(2)}`
+                        )}
+                        {' '}| {p.servings} servings
                       </div>
                     </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500 }}>
                       ${(p.price / p.servings).toFixed(2)}
+                    </td>
+                    <td style={{ padding: '18px 16px', verticalAlign: 'middle', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <input 
+                          type="number" 
+                          min="0" 
+                          max="100" 
+                          placeholder="0"
+                          value={p.discountPct || ''} 
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
+                            setProductDiscounts(prev => ({ ...prev, [p.id]: val }));
+                          }} 
+                          style={{ 
+                            width: '55px', 
+                            background: 'rgba(0,0,0,0.3)', 
+                            border: '1px solid var(--border-color)', 
+                            color: '#fff', 
+                            borderRadius: '6px', 
+                            padding: '4px 6px', 
+                            fontSize: '0.85rem',
+                            textAlign: 'center',
+                            outline: 'none',
+                            transition: 'border-color 0.2s'
+                          }} 
+                          onFocus={(e) => e.target.style.borderColor = 'var(--accent-primary)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>%</span>
+                      </div>
                     </td>
                     <td style={{ padding: '18px 16px', textAlign: 'right', verticalAlign: 'middle', fontWeight: 500, color: 'var(--text-main)' }}>
                       {Math.round(p.breakdown.costEfficacyScore)}
