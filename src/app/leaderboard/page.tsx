@@ -47,6 +47,7 @@ export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<'PRE_WORKOUT' | 'PROTEIN_POWDER'>('PRE_WORKOUT');
   const [stimFilter, setStimFilter] = useState<'ALL' | 'STIM' | 'NON_STIM'>('ALL');
   const [sortBy, setSortBy] = useState<'FINAL_SCORE' | 'VALUE_SCORE'>('FINAL_SCORE');
+  const [discountPct, setDiscountPct] = useState<number>(0);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -69,6 +70,7 @@ export default function LeaderboardPage() {
   const preWorkoutRankings = products
     .filter(p => p.type === 'PRE_WORKOUT')
     .map(p => {
+      const currentPrice = p.price * (1 - (discountPct || 0) / 100);
       const formattedIngredients = p.ingredients.map((ing: any) => ({
         id: ing.name,
         name: ing.name,
@@ -77,7 +79,7 @@ export default function LeaderboardPage() {
       }));
       const scoreData = calculatePreWorkoutScore(
         formattedIngredients,
-        p.price,
+        currentPrice,
         p.servings,
         p.servingSize,
         p.isNonStim,
@@ -85,6 +87,7 @@ export default function LeaderboardPage() {
       );
       return {
         ...p,
+        price: currentPrice,
         calculatedScore: scoreData.finalScore,
         breakdown: scoreData.breakdown
       };
@@ -105,14 +108,16 @@ export default function LeaderboardPage() {
   const proteinRankings = products
     .filter(p => p.type === 'PROTEIN_POWDER')
     .map(p => {
+      const currentPrice = p.price * (1 - (discountPct || 0) / 100);
       const scoreData = calculateProteinScore(
-        p.price,
+        currentPrice,
         p.servings,
         p.proteinDetails?.protein || 0,
         p.proteinDetails?.calories || 0
       );
       return {
         ...p,
+        price: currentPrice,
         calculatedScore: scoreData.finalScore,
         breakdown: scoreData.breakdown
       };
@@ -252,6 +257,34 @@ export default function LeaderboardPage() {
       }}>
         <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
           Showing <strong>{activeTab === 'PRE_WORKOUT' ? preWorkoutRankings.length : proteinRankings.length}</strong> products
+        </div>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid var(--border-color)',
+          padding: '4px',
+          borderRadius: '10px'
+        }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', paddingLeft: '8px', paddingRight: '4px', fontWeight: 600 }}>DISCOUNT %:</span>
+          <input 
+            type="number" 
+            min="0" 
+            max="100" 
+            value={discountPct} 
+            onChange={(e) => setDiscountPct(Number(e.target.value))} 
+            style={{ 
+              width: '60px', 
+              background: 'rgba(0,0,0,0.2)', 
+              border: '1px solid var(--border-color)', 
+              color: '#fff', 
+              borderRadius: '6px', 
+              padding: '4px 8px', 
+              fontSize: '0.9rem',
+              outline: 'none'
+            }} 
+          />
         </div>
         <div style={{ 
           display: 'flex', 
