@@ -141,11 +141,13 @@ export function calculatePreWorkoutScore(
   }
 
   // C: Calculate Efficacy Per Dollar and Value Score
-  // Benchmark: 70% efficacy for $1.50/serving (gives 46.67 points/dollar)
+  // DIY Benchmark: Estimate how much it costs to bulk buy raw ingredients and package/flavor it yourself.
+  // - Raw active performance ingredients: ~$0.04 per active gram
+  // - Baseline for tub, flavoring, sweetener, acidifier, packaging, shipping: ~$0.40 per serving
+  const estimatedDiyCostPerServing = (totalActiveMassG * 0.04) + 0.40;
+  const valueRatio = listedCostPerServing > 0 ? estimatedDiyCostPerServing / listedCostPerServing : 0;
+  const valueScore = valueRatio * 100; // Uncapped. 100 means matching raw bulk DIY cost. Very hard to exceed.
   const efficacyPerDollar = listedCostPerServing > 0 ? baseEfficacy / listedCostPerServing : 0;
-  const benchmarkEfficacyPerDollar = 70 / 1.50; 
-  const valueRatio = benchmarkEfficacyPerDollar > 0 ? efficacyPerDollar / benchmarkEfficacyPerDollar : 0;
-  const valueScore = valueRatio * 100; // Uncapped to allow dynamic adjustment with discounts
 
   // 4. Final Score
   // 70% Base Efficacy + 30% Value Score + Synergy Bonus

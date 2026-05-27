@@ -1,4 +1,4 @@
-const OPTIMAL_COST_PER_GRAM_PROTEIN = 0.02; // $0.02 per gram of protein is considered very good
+const OPTIMAL_COST_PER_GRAM_PROTEIN = 0.045; // $0.045 per gram represents raw bulk DIY protein cost (WPC/WPI bulk)
 
 export function calculateProteinScore(
   price: number,
