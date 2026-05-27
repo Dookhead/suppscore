@@ -145,7 +145,7 @@ export function calculatePreWorkoutScore(
   const efficacyPerDollar = listedCostPerServing > 0 ? baseEfficacy / listedCostPerServing : 0;
   const benchmarkEfficacyPerDollar = 70 / 1.50; 
   const valueRatio = benchmarkEfficacyPerDollar > 0 ? efficacyPerDollar / benchmarkEfficacyPerDollar : 0;
-  const valueScore = Math.min(valueRatio * 100, 100); // 0 to 100
+  const valueScore = valueRatio * 100; // Uncapped to allow dynamic adjustment with discounts
 
   // 4. Final Score
   // 70% Base Efficacy + 30% Value Score + Synergy Bonus

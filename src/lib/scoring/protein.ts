@@ -23,8 +23,7 @@ export function calculateProteinScore(
   // E.g., if cost is $0.02, ratio is 1.0. If cost is $0.04, ratio is 0.5.
   let costEfficacyScore = costPerGram > 0 ? OPTIMAL_COST_PER_GRAM_PROTEIN / costPerGram : 0;
   
-  // Cap at 1.0 
-  costEfficacyScore = Math.min(costEfficacyScore, 1.0);
+  // Uncapped to allow dynamic adjustment with discounts
 
   // 3. Formula Score
   // Protein Score = (Protein Density * 50) + (Cost Efficacy Score * 50)
